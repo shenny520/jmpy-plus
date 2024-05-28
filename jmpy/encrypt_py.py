@@ -12,6 +12,7 @@ import shutil
 import tempfile
 from distutils.command.build_py import build_py
 from distutils.core import setup
+from multiprocessing import Pool
 from typing import Union, List
 
 from Cython.Build import cythonize
@@ -37,6 +38,7 @@ class TemporaryDirectory(object):
 
 
 def search(content, regexs):
+    content = content.replace('\\', '/')
     if isinstance(regexs, str):
         return re.search(regexs, content)
 
@@ -115,35 +117,32 @@ def filter_cannot_encrypted_py(files, except_main_file):
     return _files
 
 
-def encrypt_py(py_files: list):
-    encrypted_py = []
-
+def _encrypt_py(py_file):
     with TemporaryDirectory() as td:
-        total_count = len(py_files)
-        for i, py_file in enumerate(py_files):
-            try:
-                dir_name = os.path.dirname(py_file)
-                file_name = os.path.basename(py_file)
+        try:
+            dir_name = os.path.dirname(os.path.abspath(py_file))
+            file_name = os.path.basename(py_file)
 
-                os.chdir(dir_name)
+            os.chdir(dir_name)
 
-                logger.debug("正在加密 {}/{},  {}".format(i + 1, total_count, file_name))
+            logger.debug("正在加密 {}".format(file_name))
 
-                setup(
-                    ext_modules=cythonize([file_name], quiet=True, language_level=3),
-                    script_args=["build_ext", "-t", td, "--inplace"],
-                )
+            setup(
+                ext_modules=cythonize([file_name], quiet=True, language_level=3),
+                script_args=["build_ext", "-t", td, "--inplace"],
+            )
+            logger.debug("加密成功 {}".format(file_name))
+            return py_file
+        except Exception as e:
+            logger.exception("加密失败 {} , error {}".format(py_file, e))
+            temp_c = py_file.replace(".py", ".c")
+            if os.path.exists(temp_c):
+                os.remove(temp_c)
 
-                encrypted_py.append(py_file)
-                logger.debug("加密成功 {}".format(file_name))
 
-            except Exception as e:
-                logger.exception("加密失败 {} , error {}".format(py_file, e))
-                temp_c = py_file.replace(".py", ".c")
-                if os.path.exists(temp_c):
-                    os.remove(temp_c)
-
-        return encrypted_py
+def encrypt_py(py_files: list, worker_num: int = 1):
+    with Pool(worker_num) as pool:
+        return pool.map(_encrypt_py, py_files)
 
 
 def delete_files(files_path):
@@ -173,15 +172,16 @@ def rename_excrypted_file(output_file_path):
 
 
 def start_encrypt(
-    input_file_path,
-    output_file_path: str = None,
-    ignore_files: Union[List, str, None] = None,
-    except_main_file: int = 1,
+        input_file_path,
+        output_file_path: str = None,
+        ignore_files: Union[List, str, None] = None,
+        except_main_file: int = 1,
+        worker_num: int = 1
 ):
     assert input_file_path, "input_file_path cannot be null"
 
     assert (
-        input_file_path != output_file_path
+            input_file_path != output_file_path
     ), "output_file_path must be diffent with input_file_path"
 
     if output_file_path and os.path.isfile(output_file_path):
@@ -190,7 +190,7 @@ def start_encrypt(
     input_file_path = os.path.abspath(input_file_path)
     if not output_file_path:  # 无输出路径
         if os.path.isdir(
-            input_file_path
+                input_file_path
         ):  # 如果输入路径是文件夹 则输出路径为input_file_path/dist/project_name
             output_file_path = os.path.join(
                 input_file_path, "dist", os.path.basename(input_file_path)
@@ -209,8 +209,7 @@ def start_encrypt(
     # 过滤掉不需要加密的文件
     need_encrypted_py = filter_cannot_encrypted_py(py_files, except_main_file)
 
-    encrypted_py = encrypt_py(need_encrypted_py)
-
+    encrypted_py = encrypt_py(need_encrypted_py, worker_num)
     delete_files(encrypted_py)
     rename_excrypted_file(output_file_path)
 

@@ -6,11 +6,12 @@
 
 将python代码一键加密为so或pyd。支持单个文件加密，整个项目加密。
 
-Git仓库地址: https://github.com/Boris-code/jmpy.git
+Fork from: https://github.com/Boris-code/jmpy.git
+支持多进程，修复 bug
 
 ## 安装
 
-    pip install jmpy3
+    pip install jmpy4
 
 ## 使用方法
 
