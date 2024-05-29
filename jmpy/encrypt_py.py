@@ -139,8 +139,19 @@ def _encrypt_py(py_file):
 
 
 def encrypt_py(py_files: list, worker_num: int = 1):
-    with Pool(worker_num) as pool:
-        return pool.map(_encrypt_py, py_files)
+    total = len(py_files)
+    complete = 0
+
+    def show_progress(*args):
+        nonlocal complete
+        complete += 1
+        print('*' * 20, f'【{complete}/{total}】', '*' * 20)
+
+    pool = Pool(worker_num)
+    results = [pool.apply_async(_encrypt_py, args=(file,), callback=show_progress) for file in py_files]
+    pool.close()
+    pool.join()
+    return [res.get() for res in results if res.get() is not None]
 
 
 def delete_files(files_path):

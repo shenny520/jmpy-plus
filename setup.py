@@ -33,7 +33,7 @@ setuptools.setup(
     description="python代码一键加密",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    install_requires=["Cython==0.29.20"],
+    install_requires=["Cython==3.0.0"],
     entry_points={"console_scripts": ["jmpy = jmpy.cmdline:execute"]},
     url="https://github.com/shenny520/jmpy-plus.git",
     packages=packages,
