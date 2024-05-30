@@ -39,11 +39,13 @@ class TemporaryDirectory(object):
 
 def search(content, regexs):
     content = content.replace('\\', '/')
-    regexs = regexs.replace('\\', '/')
+
     if isinstance(regexs, str):
+        regexs = regexs.replace('\\', '/')
         return re.search(regexs, content)
 
     for regex in regexs:
+        regex = regex.replace('\\', '/')
         if re.search(regex, content):
             return True
 
@@ -141,6 +143,7 @@ def _encrypt_py(py_file):
 def encrypt_py(py_files: list, worker_num: int = 1):
     total = len(py_files)
     complete = 0
+    print('*' * 20, f'【{complete}/{total}】', '*' * 20)
 
     def show_progress(*args):
         nonlocal complete
