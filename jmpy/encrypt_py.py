@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 from distutils.command.build_py import build_py
 from distutils.core import setup
 from multiprocessing import Pool
@@ -121,6 +122,7 @@ def filter_cannot_encrypted_py(files, except_main_file):
 
 
 def _encrypt_py(py_file):
+    t = time.time()
     try:
         dir_name = os.path.dirname(os.path.abspath(py_file))
         file_name = os.path.basename(py_file)
@@ -131,7 +133,7 @@ def _encrypt_py(py_file):
                 ext_modules=cythonize([py_file], quiet=True, language_level=3),
                 script_args=["build_ext", "-t", td, "--inplace", "clean", "--all"],
             )
-        logger.debug("加密成功 {}".format(file_name))
+        logger.debug("加密成功 {}, 用时 {} s".format(file_name, int(time.time() - t)))
         return py_file
     except Exception as e:
         logger.exception("加密失败 {} , error {}".format(py_file, e))
@@ -196,6 +198,7 @@ def start_encrypt(
             input_file_path != output_file_path
     ), "output_file_path must be diffent with input_file_path"
 
+    t = time.time()
     if output_file_path and os.path.isfile(output_file_path):
         raise ValueError("output_file_path need a dir path")
 
@@ -220,13 +223,13 @@ def start_encrypt(
 
     # 过滤掉不需要加密的文件
     need_encrypted_py = filter_cannot_encrypted_py(py_files, except_main_file)
-
+    need_encrypted_py.sort(key=lambda x: os.path.getsize(x), reverse=True)  # 按文件大小倒序，增加并行度，提升效率
     encrypted_py = encrypt_py(need_encrypted_py, worker_num)
     delete_files(encrypted_py)
     rename_encrypted_file(output_file_path)
 
     logger.debug(
-        "加密完成 total_count={}, success_count={}, 生成到 {}".format(
-            len(need_encrypted_py), len(encrypted_py), output_file_path
+        "加密完成, 总用时 {} s, total_count={}, success_count={}, 生成到 {}".format(
+            int(time.time() - t), len(need_encrypted_py), len(encrypted_py), output_file_path
         )
     )
