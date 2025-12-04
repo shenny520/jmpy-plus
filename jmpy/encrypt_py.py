@@ -130,7 +130,7 @@ def _encrypt_py(py_file):
         logger.debug("正在加密 {}".format(file_name))
         with TemporaryDirectory() as td:
             setup(
-                ext_modules=cythonize([py_file], quiet=True, language_level=3),
+                ext_modules=cythonize([py_file], quiet=True, language_level=3, compiler_directives={'annotation_typing': False}),
                 script_args=["build_ext", "-t", td, "--inplace", "clean", "--all"],
             )
         logger.debug("加密成功 {}, 用时 {} s".format(file_name, int(time.time() - t)))
