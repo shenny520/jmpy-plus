@@ -29,7 +29,7 @@ def execute():
     try:
         options, args = getopt.getopt(
             sys.argv[1:],
-            "h:i:o:I:m:w:",
+            "h:i:o:I:m:w:a:",
             [
                 "help",
                 "input_file_path=",
