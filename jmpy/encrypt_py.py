@@ -121,7 +121,7 @@ def filter_cannot_encrypted_py(files, except_main_file):
     return _files
 
 
-def _encrypt_py(py_file):
+def _encrypt_py(py_file, annotation_typing: Union[bool, str] = True):
     t = time.time()
     try:
         dir_name = os.path.dirname(os.path.abspath(py_file))
@@ -130,7 +130,7 @@ def _encrypt_py(py_file):
         logger.debug("正在加密 {}".format(file_name))
         with TemporaryDirectory() as td:
             setup(
-                ext_modules=cythonize([py_file], quiet=True, language_level=3, compiler_directives={'annotation_typing': False}),
+                ext_modules=cythonize([py_file], quiet=True, language_level=3, compiler_directives={'annotation_typing': annotation_typing}),
                 script_args=["build_ext", "-t", td, "--inplace", "clean", "--all"],
             )
         logger.debug("加密成功 {}, 用时 {} s".format(file_name, int(time.time() - t)))
@@ -142,7 +142,7 @@ def _encrypt_py(py_file):
             os.remove(temp_c)
 
 
-def encrypt_py(py_files: list, worker_num: int = 1):
+def encrypt_py(py_files: list, worker_num: int = 1, annotation_typing: Union[bool, str] = True):
     total = len(py_files)
     complete = 0
     print('*' * 20, f'【{complete}/{total}】', '*' * 20)
@@ -153,7 +153,7 @@ def encrypt_py(py_files: list, worker_num: int = 1):
         print('*' * 20, f'【{complete}/{total}】', '*' * 20)
 
     pool = Pool(worker_num)
-    results = [pool.apply_async(_encrypt_py, args=(file,), callback=show_progress) for file in py_files]
+    results = [pool.apply_async(_encrypt_py, args=(file, annotation_typing), callback=show_progress) for file in py_files]
     pool.close()
     pool.join()
     return [res.get() for res in results if res.get() is not None]
@@ -190,7 +190,8 @@ def start_encrypt(
         output_file_path: str = None,
         ignore_files: Union[List, str, None] = None,
         except_main_file: int = 1,
-        worker_num: int = 1
+        worker_num: int = 1,
+        annotation_typing: Union[bool, str] = True
 ):
     assert input_file_path, "input_file_path cannot be null"
 
@@ -224,7 +225,7 @@ def start_encrypt(
     # 过滤掉不需要加密的文件
     need_encrypted_py = filter_cannot_encrypted_py(py_files, except_main_file)
     need_encrypted_py.sort(key=lambda x: os.path.getsize(x), reverse=True)  # 按文件大小倒序，增加并行度，提升效率
-    encrypted_py = encrypt_py(need_encrypted_py, worker_num)
+    encrypted_py = encrypt_py(need_encrypted_py, worker_num, annotation_typing)
     delete_files(encrypted_py)
     rename_encrypted_file(output_file_path)
 
